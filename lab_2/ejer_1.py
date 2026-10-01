@@ -1,48 +1,36 @@
-import math
+import math#importamos la libreria math para poder usar las instrucciones matematicas
 
-# Valores redondeados a 6 decimales
-pi_aprox = round(math.pi, 6)  # 3.141593
-e_aprox = round(math.e, 6)     # 2.718282
+import time
 
-# Cociente con valores redondeados
-r_aprox = pi_aprox / e_aprox
+#obtiene el error absoluto,relativo y porcentual de los casos definidos
+def calcular_errores(p, p_aprox):
+    t_ini = time.perf_counter()
+    
+    e_a = abs(p - p_aprox)
+    e_r = e_a / abs(p)
+    e_p = e_r * 100
+    
+    tiempo = time.perf_counter() - t_ini
+    return e_a, e_r, e_p, tiempo
 
-# Valor real con mayor precisión
-r_real = math.pi / math.e
+def main():
+    casos = [
+        ("a", "p = π, p* = 22/7", math.pi, 22 / 7),
+        ("b", "p = π, p* = 3.1416", math.pi, 3.1416),
+        ("c", "p = e, p* = 2.718", math.e, 2.718),
+        ("d", "p = √2, p* = 1.414", math.sqrt(2), 1.414),
+        ("e", "p = e^10, p* = 22000", math.exp(10), 22000),
+        ("f", "p = 8!, p* = 39900", math.factorial(8), 39900),
+    ]
 
-# Error absoluto
-error_abs = abs(r_real - r_aprox)
+    print(f"{'Caso':<5} | {'p (Exacto)':<15} | {'p* (Aprox)':<15} | {'Error Absoluto':<16} | {'Error Relativo':<16} | {'Error Porcentual (%)':<20} | {'Tiempo (s)'}")
+    print("-" * 115)
 
-# Error relativo
-error_rel = error_abs / abs(r_real)
+    for item, desc, p, p_aprox in casos:
+        ea, er, ep, t_ejec = calcular_errores(p, p_aprox)
+        print(f"{item:<5} | {p:<15.7g} | {p_aprox:<15.7g} | {ea:<16.6e} | {er:<16.6e} | {ep:<20.4f}% | {t_ejec:<.8f}")
 
-# Dígitos significativos correctos
-digitos_significativos = -math.log10(error_rel)
+    print("-" * 115)
 
-# Dígitos decimales correctos
-# Comparamos dígito por dígito
-str_real = f"{r_real:.15f}"
-str_aprox = f"{r_aprox:.15f}"
-
-decimales_correctos = 0
-punto_encontrado = False
-for i in range(min(len(str_real), len(str_aprox))):
-    if str_real[i] == '.':
-        punto_encontrado = True
-        continue
-    if punto_encontrado:
-        if str_real[i] == str_aprox[i]:
-            decimales_correctos += 1
-        else:
-            break
-
-# Mostrar resultados
-print(f"π redondeado: {pi_aprox}")
-print(f"e redondeado: {e_aprox}")
-print(f"\nValor real (π/e): {r_real:.15f}")
-print(f"Valor aproximado: {r_aprox:.15f}")
-print(f"\nError absoluto: {error_abs:.2e}")
-print(f"Error relativo: {error_rel:.2e}")
-digitos_sig_entero = int(digitos_significativos)
-print(f"\nDígitos significativos correctos: {digitos_sig_entero:.1f}")
-print(f"Decimales correctos: {decimales_correctos}")
+if __name__ == "__main__":
+    main()
