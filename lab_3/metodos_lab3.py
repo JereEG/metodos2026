@@ -171,14 +171,16 @@ def metodo_intervalo_medio(fn, a, b, tol=1e-3, max_iter=100):
     t_total = time.perf_counter() - t_ini
     return c_ant, max_iter, err, t_total
 
-
+# Interpolacion Lineal(Regula Falsi)
 def metodo_interpolacion_lineal(fn, a, b, tol=1e-3, max_iter=100):
-    """
-    Metodo de Regula Falsi.
-    """
     t_ini = time.perf_counter()
     if fn(a) * fn(b) >= 0:
         raise ValueError("No cumple Bolzano en el intervalo [a, b]")
+
+    # Cabecera 
+    print("\n" + "-" * 75)
+    print(f"{'k':<5} {'a':<12} {'b':<12} {'x_k':<15} {'f(x_k)':<15} {'Error':<12}")
+    print("-" * 75)
 
     x_ant = a
     for k in range(1, max_iter + 1):
@@ -188,8 +190,12 @@ def metodo_interpolacion_lineal(fn, a, b, tol=1e-3, max_iter=100):
         fx_sig = fn(x_sig)
         err = abs(x_sig - x_ant) if k > 1 else abs(b - a)
 
+        # Imprime los valores correspondientes a cada columna
+        print(f"{k:<5} {a:<12.6f} {b:<12.6f} {x_sig:<15.6f} {fx_sig:<15.4e} {err:<12.4e}")
+
         if err < tol or abs(fx_sig) < 1e-14:
             t_total = time.perf_counter() - t_ini
+            print(f"Convergencia alcanzada en {k} iteraciones.")
             return x_sig, k, err, t_total
 
         if fa * fx_sig < 0:
@@ -200,7 +206,6 @@ def metodo_interpolacion_lineal(fn, a, b, tol=1e-3, max_iter=100):
 
     t_total = time.perf_counter() - t_ini
     return x_ant, max_iter, err, t_total
-
 
 
 # Condiciones de fourier 
