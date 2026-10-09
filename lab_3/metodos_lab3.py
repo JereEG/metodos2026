@@ -47,8 +47,15 @@ def regla_descartes(fx, x):
 #Tanteo nos permite aislar las raices en intervalos a partir de Bolzano: f(a)*f(b) < 0
 def barrido_tanteo(fx, x_ini=0.0, sentido="positiva", max_r=1, paso=0.5, x_max=50.0):
 
+    if sentido in ["todas", "ambas", "t"]:
+        max_p = max_r[0] if isinstance(max_r, tuple) else max_r
+        max_n = max_r[1] if isinstance(max_r, tuple) else max_r
+        int_neg = barrido_tanteo(fx, x_ini, "negativa", max_n, paso, x_max) if max_n > 0 else []
+        int_pos = barrido_tanteo(fx, x_ini, "positiva", max_p, paso, x_max) if max_p > 0 else []
+        return sorted(int_neg + [i for i in int_pos if i not in int_neg])
+
     intervalos = []
-    dx = abs(paso) if sentido == "positiva" else -abs(paso)
+    dx = abs(paso) if sentido in ["positiva", "p"] else -abs(paso)
     x_actual = float(x_ini)
 
     try:
