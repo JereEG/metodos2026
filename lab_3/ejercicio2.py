@@ -1,6 +1,6 @@
 import sympy as sp
 from metodos_lab3 import (
-    chequear_condiciones_fourier, 
+    chequear_condiciones_raphson, 
     metodo_newton_raphson, 
     graficar_curva
 )
@@ -19,7 +19,7 @@ raices = []
 
 print("--- EJERCICIO 2: PUNTOS DE EQUILIBRIO CON NEWTON-RAPHSON ---")
 for idx, (a, b) in enumerate(intervalos, 1):
-    x0 = chequear_condiciones_fourier(fn, d1, d2, d1_simb, x, a, b)
+    x0 = chequear_condiciones_raphson(fn, d1, d2, d1_simb, x, a, b)
     if x0 is not None:
         r, k, err, ok, t = metodo_newton_raphson(fn, d1, x0, tol=1e-3)
         if ok:

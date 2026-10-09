@@ -1,87 +1,138 @@
 """
-Módulo de Métodos Numéricos para Laboratorio 3
-Contiene: Regla de Descartes, Tanteo (Bolzano), Intervalo Medio, 
-Interpolación Lineal, Newton-Raphson con Fourier, e Iteración / Aitken.
+Módulo de Metodos con funciones,reglas y condiciones para Laboratorio 3
+Funciones:Regla de Descartes, Tanteo (Bolzano),graficadora, 
+Metodos de raices:Intervalo medio,interpolacion lineal,newton raphson,iteracion / con aitken
 """
+#mediciones
 import time
+#herramientas matematicas
 import math
-import sympy as sp
-import numpy as np
-import matplotlib.pyplot as plt
+import sympy as sp 
+#graficadora 
+import numpy as np 
+import matplotlib.pyplot as plt 
 
 
 # regla de signos de descartes y grado del polinomio
-def regla_descartes(f_simb, x):
-    try:
-        pol = sp.Poly(f_simb, x)
-    except:
-        print("\nLa funcion no es un polinomio, no se puede aplicar descartes.")
-        return 1, 1
-    
-    grado = pol.degree()
+def regla_descartes(fx, x):
+  
+    if not fx.is_polynomial(x) or fx==0:
+       raise ValueError("La expresión ingresada debe ser un polinomio para aplicar Descartes.")
+   
+    polinomio = sp.Poly(fx, x)
+    grado = polinomio.degree()
     print("-" * 50)
-    print(f"Grado del polinomio: {grado} (TFA: {grado} raices totales)")
+    print(f"Grado del polinomio: {grado} Por el TFA podremos tener {grado} raices totales como maximo")
 
-    # Coeficientes para x > 0 sin ceros
-    c_pos = [c for c in pol.all_coeffs() if c != 0]
-    var_pos = sum(1 for i in range(len(c_pos) - 1) if c_pos[i] * c_pos[i + 1] < 0)
-    raices_pos = [var_pos - 2 * k for k in range(var_pos // 2 + 1)]
+    # calculamos la cantidad de variaciones positivas para x > 0 sin ceros
+    L_coefi = [c for c in polinomio.all_coeffs() if c != 0] #lista de coeficientes ignorando nulos
+    cant_pos = sum(1 for i in range(len(L_coefi) - 1) if L_coefi[i] * L_coefi[i + 1] < 0)
+    raices_pos = [cant_pos - 2 * k for k in range((cant_pos // 2) + 1)] #cant de raices teniendo en cuenta conjugadas 
 
-    # Coeficientes para x < 0 evaluando P(-x)
-    pol_neg = sp.Poly(f_simb.subs(x, -x), x)
-    c_neg = [c for c in pol_neg.all_coeffs() if c != 0]
-    var_neg = sum(1 for i in range(len(c_neg) - 1) if c_neg[i] * c_neg[i + 1] < 0)
-    raices_neg = [var_neg - 2 * k for k in range(var_neg // 2 + 1)]
+    # Coeficientes para x < 0 evaluando P(-x) para ello convertimos la funcion y obtengo el polneg
+    pol_neg = sp.Poly(fx.subs(x, -x), x)
+    L_neg = [c for c in pol_neg.all_coeffs() if c != 0]
+    #calculamos la cantidad de variaciones negativas
+    cant_neg = sum(1 for i in range(len(L_neg) - 1) if L_neg[i] * L_neg[i + 1] < 0)
+    raices_neg = [cant_neg - 2 * k for k in range(cant_neg // 2 + 1)]
 
-    print(f"Variaciones signo x > 0: {var_pos} -> Posibles raices pos: {raices_pos}")
-    print(f"Variaciones signo x < 0: {var_neg} -> Posibles raices neg: {raices_neg}")
+    print(f"Variaciones signo x > 0: {cant_pos} -> Por la Regla tendremos {raices_pos} posibles raices positivas Reales")
+    print(f"Variaciones signo x < 0: {cant_neg} -> Por la Regla tendremos {raices_neg} posibles raices negativas Reales")
     print("-" * 50)
 
     max_p = max(raices_pos) if raices_pos else 0
     max_n = max(raices_neg) if raices_neg else 0
     return max_p, max_n
 
+#Tanteo nos permite aislar las raices en intervalos a partir de Bolzano: f(a)*f(b) < 0
+def barrido_tanteo(fx, x_ini=0.0, sentido="positiva", max_r=1, paso=0.5, x_max=50.0):
 
-def barrido_tanteo(fn, x_ini=0.0, sentido="positiva", max_r=1, paso=0.5, x_max=100.0):
-    """
-    Busqueda incremental que aisla raices por Bolzano: f(a)*f(b) < 0.
-    """
     intervalos = []
     dx = abs(paso) if sentido == "positiva" else -abs(paso)
-    x_act = float(x_ini)
+    x_actual = float(x_ini)
 
     try:
-        f_ant = fn(x_act)
+        fx_ant = fx(x_actual)
+        #condicion para cuando cae sobre la raiz el tanteo en la primera iteracion
+        if abs(fx_ant) < 1e-12:
+            intervalos.append((round(x_actual, 4), round(x_actual, 4)))
+            fx_ant = 0.0
     except Exception:
+        print(f"Error al evaluar f(x) en el inicio: {x_actual } revisar valores ingresados")
         return intervalos
 
     pasos = 0
-    limite = int(x_max / abs(paso))
+    limite = int(x_max / abs(paso)) # calculo la cant de pasos que puedo dar o mi cota de parada
 
     while len(intervalos) < max_r and pasos < limite:
-        x_sig = x_act + dx
+        x_sig = x_actual + dx
         try:
-            f_sig = fn(x_sig)
-            if f_ant * f_sig < 0:
-                a_min = min(x_act, x_sig)
-                b_max = max(x_act, x_sig)
-                intervalos.append((round(a_min, 4), round(b_max, 4)))
-            elif abs(f_sig) < 1e-12:
+            fx_sig = fx(x_sig)
+            if abs(fx_sig) < 1e-12: #condicion para cuando cae sobre la raiz el tanteo
                 intervalos.append((round(x_sig, 4), round(x_sig, 4)))
+                fx_sig = 0.0
+             #verifico que el termino anterior no sea 0(raiz) par que no de falso pos(no busque en el intervalo ese) y cumpla con bolzano
+            elif abs(fx_ant) >= 1e-12 and (fx_ant * fx_sig < 0):
+                #[a,b]
+                a_min = min(x_actual, x_sig) 
+                b_max = max(x_actual, x_sig) 
+                intervalos.append((round(a_min, 4), round(b_max, 4)))
+            
         except Exception:
             break
-
-        x_act = x_sig
-        f_ant = f_sig
+        #actualizo info 
+        x_actual = x_sig
+        fx_ant = fx_sig
         pasos += 1
 
     return intervalos
 
 
-# -------------------------------------------------------------
-# 2. INTERVALO MEDIO E INTERPOLACIÓN LINEAL
-# -------------------------------------------------------------
+def graficar_curva(fn, a_vis, b_vis, intervalos=None, raices=None, titulo="Grafico de la funcion"):
+    xs = np.linspace(a_vis, b_vis, 600)
+    try:    
+        ys = [fn(pt) for pt in xs]
+    except:
+        print("No se pudo armar el grafico.")
+        return
 
+    plt.figure(figsize=(9, 5))
+    plt.plot(xs, ys, "b-", label="f(x)")
+    plt.axhline(0, color="black", linestyle="--", linewidth=0.8)
+    plt.axvline(0, color="black", linestyle="--", linewidth=0.8)
+
+    #grafica los intervalos
+    if intervalos:
+        for idx, (a, b) in enumerate(intervalos):
+            lbl = "Intervalo tanteo" if idx == 0 else ""
+            #si el intervalo tiene ancho 0 es decir a==b en tanteo cayo en el punto exacto sobre la raiz
+            if abs(b-a) < 1e-6:
+                #dibujo una linea vertical 
+                plt.axvline(
+                    a,color="orange", linestyle="-.", linewidth=1.5, label=lbl
+                )
+            else:
+                #sino sombreo el area del intervalo de tanteo
+                plt.axvspan(a, b, color="orange", alpha=0.3, label=lbl)
+                
+    #grafica las raices
+    if raices:
+        for idx, r in enumerate(raices):
+            lbl = "Raiz aproximada" if idx == 0 else ""
+            plt.plot(r, fn(r), "ro", markersize=6, label=lbl)
+            plt.text(r, fn(r), f"  r={r:.4f}", color="darkred")
+
+    plt.title(titulo)
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.grid(True, linestyle=":")
+    plt.legend()
+    plt.show()
+    
+###############         METODOS PARA CALCULAR RAICES       ##############
+
+
+# INTERVALO MEDIO
 def metodo_intervalo_medio(fn, a, b, tol=1e-3, max_iter=100):
     """
     Metodo de Biseccion. Informa iteraciones teoricas minimas.
@@ -144,39 +195,38 @@ def metodo_interpolacion_lineal(fn, a, b, tol=1e-3, max_iter=100):
     return x_ant, max_iter, err, t_total
 
 
-# -------------------------------------------------------------
-# 3. CONDICIONES DE FOURIER Y NEWTON-RAPHSON
-# -------------------------------------------------------------
 
-def chequear_condiciones_fourier(fn, d1, d2, d1_simb, x, a, b):
+# Condiciones de fourier 
+def chequear_condiciones_raphson(fn, d1, d2, d1_simb, x, a, b):
     """
-    Verifica:
-    1. Bolzano: f(a)*f(b) < 0
-    2. Monotonia: f'(x) != 0 en (a, b)
-    3. Fourier: f(x0)*f''(x0) > 0 para elegir x0
+    Esta funcion permite verificar las 3 condiciones de newton para asegurar convergencia
+    1. Bolzano: f(a)*f(b) < 0 (suficiente)
+    2. Monotonia: f'(x) != 0 en (a, b) (no necesaria)
+    3. Fourier: f(x0)*f''(x0) > 0 para elegir x0 (suficiente)
     """
-    print(f"\n--- Condiciones de Fourier en [{a:.4f} ; {b:.4f}] ---")
-    fa, fb = fn(a), fn(b)
+    print(f"\n--- Verificamos condiciones en el intervalo [{a:.4f} ; {b:.4f}] ---")
+    fa = fn(a)
+    fb = fn(b)
 
     # 1. Bolzano
     if fa * fb >= 0:
-        print(" [X] Bolzano: No hay cambio de signo.")
+        print(" [X] No cumple T. Bolzano ,NO hay cambio de signo.")
         return None
-    print(" [OK] Condicion I (Bolzano): Cumple.")
+    print(" [OK] Cumple T. Bolzano (Condicion 1)")
 
     # 2. Monotonia (derivada no nula)
     try:
         pts = sp.solve(d1_simb, x)
         criticos = [float(p.evalf()) for p in pts if p.is_real and a <= float(p.evalf()) <= b]
         if criticos:
-            print(f" [!] Alerta monotonia: Puntos criticos en {criticos}")
+            print(f"[!] No cumple monotonia, Puntos criticos en {criticos}")
         else:
-            print(" [OK] Condicion II (Monotonia): f'(x) != 0 en el intervalo.")
+            print(" [OK] Cumple monotonia(Condicion II): f'(x) != 0 en el intervalo.")
     except Exception:
         if d1(a) * d1(b) > 0:
-            print(" [OK] Condicion II (Monotonia): Mismo signo en bordes.")
+            print(" [OK] Condicion II (Monotonia): La 1ra derivada tiene mismo signo en bordes [a,b].")
         else:
-            print(" [!] Alerta: f' cambia de signo.")
+            print(" [!] La 1ra derivada: f' cambia de signo en los bordes")
 
     # 3. Eleccion de x0 por Fourier
     f2a, f2b = d2(a), d2(b)
@@ -190,10 +240,10 @@ def chequear_condiciones_fourier(fn, d1, d2, d1_simb, x, a, b):
         return x0
     else:
         x0 = a if abs(fa) < abs(fb) else b
-        print(f" [!] Ningun borde cumple f*f''>0. Se toma x0 = {x0:.4f} (menor |f|)")
+        print(f" [!] Ningun borde cumple f*f''>0. Se toma x0 = {x0:.4f} se toma el valor abs del menor valor")
         return x0
 
-
+#Metodo NEWTON-RAPHSON 
 def metodo_newton_raphson(fn, d1, x0, tol=1e-3, max_iter=50):
     """
     Iteraciones de Newton-Raphson mostrando la tabla paso a paso.
@@ -217,9 +267,10 @@ def metodo_newton_raphson(fn, d1, x0, tol=1e-3, max_iter=50):
         err = abs(x_sig - x_val)
 
         print(f"{k+1:<5} {x_val:<15.6f} {fx:<15.4e} {dfx:<15.6f} {x_sig:<15.6f} {err:<15.4e}")
-
+         # corte por tolerancia
         if err < tol or abs(fx) < tol:
             t_total = time.perf_counter() - t_ini
+            print(f"Convergencia alcanzada en {k + 1} iteraciones.")
             return x_sig, k + 1, err, True, t_total
 
         x_val = x_sig
@@ -228,10 +279,8 @@ def metodo_newton_raphson(fn, d1, x0, tol=1e-3, max_iter=50):
     return x_val, max_iter, err, False, t_total
 
 
-# -------------------------------------------------------------
-# 4. ITERACIÓN Y ACELERACIÓN DE AITKEN
-# -------------------------------------------------------------
 
+# ITERACIÓN Y ACELERACIÓN DE AITKEN
 def metodo_iteracion(g_fn, x0, tol=1e-4, max_iter=100, usar_aitken=False):
     """
     Metodo de iteracion de punto fijo x = g(x), con soporte opcional de Aitken.
@@ -274,34 +323,3 @@ def metodo_iteracion(g_fn, x0, tol=1e-4, max_iter=100, usar_aitken=False):
     t_total = time.perf_counter() - t_ini
     return x, max_iter, err, t_total
 
-
-# -------------------------------------------------------------
-# 5. UTILIDADES GRÁFICAS
-# -------------------------------------------------------------
-
-def graficar_curva(fn, a_vis, b_vis, intervalos=None, raices=None, titulo="Grafico de la funcion"):
-    xs = np.linspace(a_vis, b_vis, 600)
-    ys = [fn(pt) for pt in xs]
-
-    plt.figure(figsize=(9, 5))
-    plt.plot(xs, ys, "b-", label="f(x)")
-    plt.axhline(0, color="black", linestyle="--", linewidth=0.8)
-    plt.axvline(0, color="black", linestyle="--", linewidth=0.8)
-
-    if intervalos:
-        for idx, (a, b) in enumerate(intervalos):
-            lbl = "Intervalo tanteo" if idx == 0 else ""
-            plt.axvspan(a, b, color="orange", alpha=0.3, label=lbl)
-
-    if raices:
-        for idx, r in enumerate(raices):
-            lbl = "Raiz" if idx == 0 else ""
-            plt.plot(r, fn(r), "ro", markersize=6, label=lbl)
-            plt.text(r, fn(r), f"  r={r:.4f}", color="darkred")
-
-    plt.title(titulo)
-    plt.xlabel("x")
-    plt.ylabel("f(x)")
-    plt.grid(True, linestyle=":")
-    plt.legend()
-    plt.show()
