@@ -138,39 +138,6 @@ def graficar_curva(fn, a_vis, b_vis, intervalos=None, raices=None, titulo="Grafi
     
 ###############         METODOS PARA CALCULAR RAICES       ##############
 
-
-# INTERVALO MEDIO
-def metodo_intervalo_medio(fn, a, b, tol=1e-3, max_iter=100):
-    """
-    Metodo de Biseccion. Informa iteraciones teoricas minimas.
-    """
-    t_ini = time.perf_counter()
-    if fn(a) * fn(b) >= 0:
-        raise ValueError("No cumple Bolzano en el intervalo [a, b]")
-
-    # Estimacion previa de iteraciones teoricas
-    n_teorico = math.ceil((math.log(b - a) - math.log(tol)) / math.log(2))
-    print(f"Iteraciones teoricas estimadas: {n_teorico}")
-
-    c_ant = a
-    for k in range(1, max_iter + 1):
-        c = (a + b) / 2.0
-        fc = fn(c)
-        err = abs(c - c_ant) if k > 1 else abs(b - a)
-
-        if err < tol or abs(fc) < 1e-14:
-            t_total = time.perf_counter() - t_ini
-            return c, k, err, t_total
-
-        if fn(a) * fc < 0:
-            b = c
-        else:
-            a = c
-        c_ant = c
-
-    t_total = time.perf_counter() - t_ini
-    return c_ant, max_iter, err, t_total
-
 # Interpolacion Lineal(Regula Falsi)
 def metodo_interpolacion_lineal(fn, a, b, tol=1e-3, max_iter=100):
     t_ini = time.perf_counter()
@@ -290,6 +257,37 @@ def metodo_newton_raphson(fn, d1, x0, tol=1e-3, max_iter=50):
     t_total = time.perf_counter() - t_ini
     return x_val, max_iter, err, False, t_total
 
+# INTERVALO MEDIO
+def metodo_intervalo_medio(fn, a, b, tol=1e-3, max_iter=100):
+    """
+    Metodo de Biseccion. Informa iteraciones teoricas minimas.
+    """
+    t_ini = time.perf_counter()
+    if fn(a) * fn(b) >= 0:
+        raise ValueError("No cumple Bolzano en el intervalo [a, b]")
+
+    # Estimacion previa de iteraciones teoricas
+    n_teorico = math.ceil((math.log(b - a) - math.log(tol)) / math.log(2))
+    print(f"Iteraciones teoricas estimadas: {n_teorico}")
+
+    c_ant = a
+    for k in range(1, max_iter + 1):
+        c = (a + b) / 2.0
+        fc = fn(c)
+        err = abs(c - c_ant) if k > 1 else abs(b - a)
+
+        if err < tol or abs(fc) < 1e-14:
+            t_total = time.perf_counter() - t_ini
+            return c, k, err, t_total
+
+        if fn(a) * fc < 0:
+            b = c
+        else:
+            a = c
+        c_ant = c
+
+    t_total = time.perf_counter() - t_ini
+    return c_ant, max_iter, err, t_total
 
 
 # ITERACIÓN Y ACELERACIÓN DE AITKEN

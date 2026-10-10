@@ -23,8 +23,7 @@ except Exception as e:
 
 # verifico que sea un polinomio sino descarte da error 
 if not f_simb.is_polynomial(x):
-    print("\nError: La función ingresada no es un polinomio. El programa solo admite polinomios.")
-    exit()
+    raise ValueError("\nError: La función ingresada no es un polinomio. El programa solo admite polinomios.")
     
 # Analisis previo con descartes
 max_p, max_n = regla_descartes(f_simb, x)
