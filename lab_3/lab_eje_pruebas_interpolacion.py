@@ -15,7 +15,11 @@ try:
 except Exception as e:
     raise ValueError("Error con la funcion ingresada:", e)
 
-# Analisis previo con descartes, pedimos los parametros para la busqueda
+# verifico que sea un polinomio sino descarte da error 
+if not f_simb.is_polynomial(x):
+    raise ValueError("\nError: La función ingresada no es un polinomio. El programa solo admite polinomios.")
+
+# Analisis previo con descartes
 max_p, max_n = regla_descartes(f_simb, x)
 
 print("\n--- CONFIGURACION DE LA BUSQUEDA ---")
@@ -46,52 +50,52 @@ tol = float(val_tol) if val_tol != "" else 1e-5
 print(f"\nBuscando intervalos en sentido {sentido} desde x = {x_inicio}...")
 intervalos = barrido_tanteo(fn, x_inicio, sentido, lim_raices, paso, x_limite)
 
-if len(intervalos) == 0:
+if not intervalos:
     print("No se encontraron cambios de signo en ese rango.")
+else:
+    print("\nIntervalos encontrados:")
+    for i, (a, b) in enumerate(intervalos, 1):
+        print(f"  Intervalo {i}: [{round(a, 4)} ; {round(b, 4)}]")
+        
+    # Aplicación de Interpolacion Lineal sobre cada intervalo
+    raices_halladas = []
+    puntos_x = [x_inicio]
 
-print("\nIntervalos encontrados:")
-for i, (a, b) in enumerate(intervalos, 1):
-    print(f"  Intervalo {i}: [{round(a, 4)} ; {round(b, 4)}]")
-    
-# Aplicación de Interpolacion Lineal sobre cada intervalo
-raices_halladas = []
-puntos_x = [x_inicio]
+    for i, (a, b) in enumerate(intervalos, 1):
+        puntos_x.extend([a, b])
 
-for i, (a, b) in enumerate(intervalos, 1):
-    puntos_x.extend([a, b])
+        # Si el intervalo es un punto exacto encontrado en tanteo (a == b)
+        if abs(b - a) < 1e-6:
+            print(f"\n>> Raíz exacta encontrada en tanteo: x = {a:.6f}")
+            raices_halladas.append(a)
+            puntos_x.append(a)
+            continue
 
-    # Si el intervalo es un punto exacto encontrado en tanteo (a == b)
-    if abs(b - a) < 1e-6:
-        print(f"\n>> Raíz exacta encontrada en tanteo: x = {a:.6f}")
-        raices_halladas.append(a)
-        puntos_x.append(a)
-        continue
+        # Llamado al método de interpolación lineal (Regula Falsi)
+        # metodo_interpolacion_lineal devuelve x_sig, iteraciones, err, t_total
+        try:
+            r, k, err, t_ejec = metodo_interpolacion_lineal(fn, a, b, tol=tol)
+            raices_halladas.append(r)
+            puntos_x.append(r)
+            print(f"La Raíz num {i} aproximada es : x = {round(r, 6)} en {k} iteraciones (Tiempo: {t_ejec:.6f} s)")
+            print(f"Su imagen : f({round(r, 6)}) = {format(fn(r), '.4e')}")
+        except ValueError as ve:
+            print(f"Saltando intervalo {i} por error: {ve}")
 
-    # Llamado al método de interpolación lineal (Regula Falsi)
-    # metodo_interpolacion_lineal devuelve x_sig, iteraciones, err, t_total
-    try:
-        r, k, err, t_ejec = metodo_interpolacion_lineal(fn, a, b, tol=tol)
-        raices_halladas.append(r)
-        puntos_x.append(r)
-        print(f"La Raíz num {i} aproximada es : x = {round(r, 6)} en {k} iteraciones (Tiempo: {t_ejec:.6f} s)")
-        print(f"Su imagen : f({round(r, 6)}) = {format(fn(r), '.4e')}")
-    except ValueError as ve:
-        print(f"Saltando intervalo {i} por error: {ve}")
+    # GRAFICO LA FUNCION Y ABRO EL GRAFICO
+    if len(raices_halladas) > 0:
+        print("\nAbriendo gráfico...")
+        # Margen 
+        ancho = max(puntos_x) - min(puntos_x)
+        margen = max(ancho * 0.15, 1.0)
+        a_vis = min(puntos_x) - margen
+        b_vis = max(puntos_x) + margen
 
-# GRAFICO LA FUNCION Y ABRO EL GRAFICO
-if len(raices_halladas) > 0:
-    print("\nAbriendo gráfico...")
-    # Margen 
-    ancho = max(puntos_x) - min(puntos_x)
-    margen = max(ancho * 0.15, 1.0)
-    a_vis = min(puntos_x) - margen
-    b_vis = max(puntos_x) + margen
-
-    graficar_curva(
-        fn,
-        a_vis,
-        b_vis,
-        intervalos=intervalos,
-        raices=raices_halladas,
-        titulo=f"Interpolación Lineal: f(x) = {entrada}",
-    )
+        graficar_curva(
+            fn,
+            a_vis,
+            b_vis,
+            intervalos=intervalos,
+            raices=raices_halladas,
+            titulo=f"Interpolación Lineal: f(x) = {entrada}",
+        )
