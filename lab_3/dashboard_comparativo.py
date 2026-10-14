@@ -177,6 +177,7 @@ st.header("3. Ejecución Lado a Lado")
 
 historiales_completos_il = []
 historiales_completos_nr = []
+historiales_por_raiz = []
 min_x_graph, max_x_graph = float('inf'), float('-inf')
 
 for num_raiz, (a_val, b_val) in enumerate(intervalos_a_procesar, 1):
@@ -227,6 +228,14 @@ for num_raiz, (a_val, b_val) in enumerate(intervalos_a_procesar, 1):
             df_nr = pd.DataFrame(hist_nr)
             st.dataframe(df_nr.style.format(precision=6), use_container_width=True)
             historiales_completos_nr.extend(hist_nr)
+
+    # Guardar historiales estructurados por raíz para el trazado independiente en la Sección 4
+    historiales_por_raiz.append({
+        "num_raiz": num_raiz,
+        "intervalo": (a_val, b_val),
+        "hist_il": hist_il,
+        "hist_nr": hist_nr
+    })
             
     # --- CONCLUSION INDIVIDUAL ---
     if ok_il and ok_nr:
@@ -247,6 +256,20 @@ st.markdown("""
 > Cada marca superpuesta muestra qué valores probó cada método en cada iteración ($x_i$). Así puedes ver gráficamente si el método se acercó a la raíz saltando de un lado a otro (oscilación), acercándose muy lentamente (atasco), o de forma directa y limpia.
 """)
 
+mostrar_geometria = st.checkbox("Mostrar interpretación geométrica paso a paso (tangentes / secantes)", value=False)
+
+if mostrar_geometria:
+    pasos_geom = st.slider(
+        "Pasos geométricos a graficar por raíz:",
+        min_value=1,
+        max_value=10,
+        value=3,
+        help="Limita la cantidad de tangentes y secantes dibujadas para evitar la saturación visual cuando los métodos están extremadamente cerca de la raíz."
+    )
+    st.info("📐 **Interpretación Geométrica:** En naranja se trazan las **rectas tangentes** de Newton-Raphson que cortan el eje horizontal en $x_{i+1}$, junto con líneas verticales punteadas que proyectan el nuevo punto hacia $f(x)$. En magenta punteado se trazan las **rectas secantes** de Interpolación Lineal uniendo $[a, f(a)]$ y $[b, f(b)]$ para atrapar la raíz.")
+else:
+    pasos_geom = 0
+
 margen_x = max(0.5, (max_x_graph - min_x_graph) * 0.2)
 xs = np.linspace(min_x_graph - margen_x, max_x_graph + margen_x, 600)
 try:
@@ -263,15 +286,117 @@ fig = go.Figure()
 fig.add_trace(go.Scatter(x=xs, y=ys, mode='lines', name='f(x)'))
 fig.add_hline(y=0, line_dash="dash", line_color="red")
 
-if historiales_completos_il:
-    il_xs = [step["x_i"] for step in historiales_completos_il]
-    il_ys = [step["f(x_i)"] for step in historiales_completos_il]
-    fig.add_trace(go.Scatter(x=il_xs, y=il_ys, mode='markers+lines', name='Iteraciones IL', marker=dict(symbol='circle', size=8, color='cyan')))
+hay_multiples_raices = len(historiales_por_raiz) > 1
 
-if historiales_completos_nr:
-    nr_xs = [step["x_i"] for step in historiales_completos_nr]
-    nr_ys = [step["f(x_i)"] for step in historiales_completos_nr]
-    fig.add_trace(go.Scatter(x=nr_xs, y=nr_ys, mode='markers+lines', name='Iteraciones NR', marker=dict(symbol='cross', size=10, color='yellow')))
+for item in historiales_por_raiz:
+    num_r = item["num_raiz"]
+    label_sufijo = f" (Raíz {num_r})" if hay_multiples_raices else ""
+
+    # Interpolación Lineal: traza independiente por raíz con línea continua únicamente dentro de cada búsqueda
+    if item["hist_il"]:
+        il_xs = [step["x_i"] for step in item["hist_il"]]
+        il_ys = [step["f(x_i)"] for step in item["hist_il"]]
+        fig.add_trace(go.Scatter(
+            x=il_xs,
+            y=il_ys,
+            mode='markers+lines',
+            name=f'Iteraciones IL{label_sufijo}',
+            marker=dict(symbol='circle', size=8, color='cyan'),
+            line=dict(color='cyan', width=1.5)
+        ))
+
+    # Newton-Raphson: puntos como markers para evitar trazos secantes o líneas espurias entre raíces
+    if item["hist_nr"]:
+        nr_xs = [step["x_i"] for step in item["hist_nr"]]
+        nr_ys = [step["f(x_i)"] for step in item["hist_nr"]]
+        fig.add_trace(go.Scatter(
+            x=nr_xs,
+            y=nr_ys,
+            mode='markers',
+            name=f'Iteraciones NR{label_sufijo}',
+            marker=dict(symbol='cross', size=10, color='yellow')
+        ))
+
+    # Visualización teórica opcional: Tangentes / Proyecciones (NR) y Secantes (IL)
+    if mostrar_geometria and pasos_geom > 0:
+        # Newton-Raphson: Tangentes y Proyecciones verticales
+        if item["hist_nr"]:
+            pasos_nr = item["hist_nr"][:pasos_geom]
+            tan_x, tan_y = [], []
+            proy_x, proy_y = [], []
+            for step in pasos_nr:
+                xi = step.get("x_i")
+                fxi = step.get("f(x_i)")
+                xsig = step.get("x_{i+1}")
+                if xsig is None or xi is None or fxi is None:
+                    continue
+                try:
+                    fxsig = float(fn(xsig))
+                    if np.isnan(fxsig) or np.isinf(fxsig):
+                        fxsig = None
+                except Exception:
+                    fxsig = None
+
+                # Recta tangente de (x_i, f(x_i)) a (x_{i+1}, 0)
+                tan_x.extend([xi, xsig, None])
+                tan_y.extend([fxi, 0.0, None])
+
+                # Proyección vertical punteada de (x_{i+1}, 0) a (x_{i+1}, f(x_{i+1}))
+                if fxsig is not None:
+                    proy_x.extend([xsig, xsig, None])
+                    proy_y.extend([0.0, fxsig, None])
+
+            if tan_x:
+                fig.add_trace(go.Scatter(
+                    x=tan_x,
+                    y=tan_y,
+                    mode='lines',
+                    name=f'Tangentes NR{label_sufijo}',
+                    line=dict(color='orange', width=1.6),
+                    legendgroup=f'geom_nr_{num_r}',
+                    hoverinfo='skip'
+                ))
+            if proy_x:
+                fig.add_trace(go.Scatter(
+                    x=proy_x,
+                    y=proy_y,
+                    mode='lines',
+                    name=f'Proyección vertical NR{label_sufijo}',
+                    line=dict(color='gold', width=1.3, dash='dot'),
+                    legendgroup=f'geom_nr_{num_r}',
+                    hoverinfo='skip'
+                ))
+
+        # Interpolación Lineal: Secantes entre [a, b]
+        if item["hist_il"]:
+            pasos_il = item["hist_il"][:pasos_geom]
+            sec_x, sec_y = [], []
+            for step in pasos_il:
+                ak = step.get("a")
+                bk = step.get("b")
+                if ak is None or bk is None:
+                    continue
+                try:
+                    fak = float(fn(ak))
+                    fbk = float(fn(bk))
+                    if np.isnan(fak) or np.isnan(fbk) or np.isinf(fak) or np.isinf(fbk):
+                        continue
+                except Exception:
+                    continue
+
+                sec_x.extend([ak, bk, None])
+                sec_y.extend([fak, fbk, None])
+
+            if sec_x:
+                fig.add_trace(go.Scatter(
+                    x=sec_x,
+                    y=sec_y,
+                    mode='lines',
+                    name=f'Secantes IL{label_sufijo}',
+                    line=dict(color='magenta', width=1.5, dash='dash'),
+                    legendgroup=f'geom_il_{num_r}',
+                    hoverinfo='skip'
+                ))
 
 fig.update_layout(
     title="Camino hacia las Raíces", 
